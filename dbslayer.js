@@ -21,15 +21,21 @@ Server = this.Server = function(host, port, timeout){
 
 Server.prototype.fetch = function(object, key){
   var connection = http.createClient(this.port, this.host),
-      request = connection[connection.get ? 'get' : 'request']('/db?' + escape(JSON.stringify(object)), {'host': this.host}),
+      request = connection.request('/db?' + escape(JSON.stringify(object)), {'host': this.host}),
       promise = new process.Promise();
   
   promise.timeout(this.timeout);
-
-  request.finish(function(response){
-    response.addListener('body', function(data){  
+  
+  request.addListener('response', function(response){
+    var response_data = '';
+    
+    response.addListener('data', function(data){
+      response_data += data;
+    });
+  
+    response.addListener('end', function(){  
       try {
-        var object = JSON.parse(data);
+        var object = JSON.parse(response_data);
       } catch(e){
         return promise.emitError(e);
       }      
@@ -43,6 +49,8 @@ Server.prototype.fetch = function(object, key){
       }      
     });
   });
+
+  request.close();
   
   return promise;
 };
